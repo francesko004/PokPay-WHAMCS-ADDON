@@ -1,0 +1,9 @@
+{
+    "name": "pokpay/whmcs-gateway-tests",
+    "description": "Test harness for the PokPay WHMCS gateway (not needed in production)",
+    "require": {
+        "php": ">=7.4",
+        "illuminate/database": "^8.0 || ^10.0 || ^11.0"
+    },
+    "config": { "sort-packages": true }
+}
