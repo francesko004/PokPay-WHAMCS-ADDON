@@ -19,7 +19,16 @@ $apiUrl = "http://127.0.0.1:$apiPort";
 exec('rm -rf ' . escapeshellarg($work));
 mkdir("$work/whmcs", 0777, true);
 exec('cp -R ' . escapeshellarg(__DIR__ . '/whmcs-stub') . '/. ' . escapeshellarg("$work/whmcs"));
-exec('cp -R ' . escapeshellarg("$root/modules") . ' ' . escapeshellarg("$work/whmcs/modules"));
+// POKPAY_TEST_ZIP=path/to/release.zip installs from the release zip instead of the repo.
+if (getenv('POKPAY_TEST_ZIP')) {
+    exec('unzip -q ' . escapeshellarg(getenv('POKPAY_TEST_ZIP')) . ' -d ' . escapeshellarg("$work/zip") . ' && cp -R ' . escapeshellarg("$work/zip/upload") . '/. ' . escapeshellarg("$work/whmcs"), $o, $rc);
+    if ($rc !== 0 || !is_file("$work/whmcs/modules/gateways/pokpay.php")) {
+        fwrite(STDERR, "Could not install from zip\n");
+        exit(1);
+    }
+} else {
+    exec('cp -R ' . escapeshellarg("$root/modules") . ' ' . escapeshellarg("$work/whmcs/modules"));
+}
 
 $env = [
     'POKPAY_TEST_DB' => "$work/whmcs.sqlite",

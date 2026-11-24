@@ -24,6 +24,16 @@ applied automatically.
 - Staging/sandbox mode, and API calls logged to the WHMCS module log with secrets masked
 - No Composer dependencies. Upload it and it works.
 
+## Recurring payments (hosting renewals)
+
+In this version every invoice, including WHMCS's automatic **renewal invoices**, gets the
+POK pay button and is marked paid automatically. Customers pay each renewal from the
+invoice email.
+
+Automatic card charging for renewals (POK Subscriptions) is in development. It needs
+Subscriptions switched on for your merchant account. Ask POK at support@rpay.ai for both
+staging and production.
+
 ## Requirements
 
 - WHMCS 9.x (including 9.11) or 8.x
@@ -34,7 +44,9 @@ applied automatically.
 
 ## Installation
 
-1. Copy the `modules` folder into your WHMCS root directory. It merges with the existing one:
+1. Copy the **contents of the `upload` folder** from the release zip (or the `modules` folder
+   from this repository) into your WHMCS root directory, the folder that contains
+   `configuration.php`. It merges with the existing `modules` folder:
 
    ```
    modules/gateways/pokpay.php
@@ -42,7 +54,6 @@ applied automatically.
    modules/gateways/callback/pokpay.php
    ```
 
-   Or build the zip with `./build.sh` (see *Packaging*) and extract it into the WHMCS root.
 
 2. In the WHMCS admin area open **Payment Gateways** (Configuration → System Settings →
    Payment Gateways, or type "Payment Gateways" in the admin search). Under all gateways
@@ -141,7 +152,7 @@ php run-tests.php
 ## Packaging
 
 ```bash
-./build.sh            # -> dist/pokpay-whmcs-<version>.zip, ready to extract into the WHMCS root
+./build.sh            # -> dist/pokpay-whmcs-<version>.zip  (upload/ + README.md + INSTALL.txt)
 ```
 
 ## API reference
