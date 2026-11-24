@@ -219,6 +219,65 @@ class PokPayClient
         return self::extractOrder($response) ?: (isset($response['data']) ? (array) $response['data'] : []);
     }
 
+    // ---------------------------------------------------------------------
+    // Subscriptions (https://docs.pokpay.io/docs/subscriptions.md)
+    // ---------------------------------------------------------------------
+
+    /**
+     * Create a subscription plan. Returns data.subscriptionPlan, which includes the
+     * plan's webhookSecret (only returned on create / clone / rotate).
+     */
+    public function createPlan(array $payload)
+    {
+        $this->requireMerchant();
+        $response = $this->request(
+            'POST',
+            '/merchants/' . rawurlencode($this->merchantId) . '/subscription-plans',
+            $payload,
+            true,
+            'createPlan'
+        );
+
+        $plan = isset($response['data']['subscriptionPlan']) && is_array($response['data']['subscriptionPlan'])
+            ? $response['data']['subscriptionPlan'] : [];
+        if (empty($plan['id'])) {
+            throw new PokPayException('PokPay did not return a subscription plan id.', 0, $response);
+        }
+
+        return $plan;
+    }
+
+    /**
+     * Create a (pending) subscription on a plan. Returns the whole data object:
+     * ['subscription' => [... '_self' => ['confirmUrl']], 'plan' => [...], 'charge' => [...], 'sdkOrder' => [...]]
+     */
+    public function createSubscription($planId, $externalCustomerId = null, $expiresAfterMinutes = null)
+    {
+        $this->requireMerchant();
+        $payload = ['planId' => (string) $planId];
+        if ($externalCustomerId !== null && $externalCustomerId !== '') {
+            $payload['externalCustomerId'] = substr((string) $externalCustomerId, 0, 255);
+        }
+        if ($expiresAfterMinutes !== null) {
+            $payload['expiresAfterMinutes'] = (int) $expiresAfterMinutes;
+        }
+
+        $response = $this->request(
+            'POST',
+            '/merchants/' . rawurlencode($this->merchantId) . '/subscriptions',
+            $payload,
+            true,
+            'createSubscription'
+        );
+
+        $data = isset($response['data']) && is_array($response['data']) ? $response['data'] : [];
+        if (empty($data['subscription']['id'])) {
+            throw new PokPayException('PokPay did not return a subscription id.', 0, $response);
+        }
+
+        return $data;
+    }
+
     /**
      * Pull the sdkOrder object out of an API (or webhook) response.
      */
@@ -339,7 +398,7 @@ class PokPayClient
             return $data;
         }
         foreach ($data as $key => $value) {
-            if (in_array((string) $key, ['accessToken', 'refreshToken', 'keySecret'], true)) {
+            if (in_array((string) $key, ['accessToken', 'refreshToken', 'keySecret', 'webhookSecret'], true)) {
                 $data[$key] = '***';
             } elseif (is_array($value)) {
                 $data[$key] = self::redact($value);

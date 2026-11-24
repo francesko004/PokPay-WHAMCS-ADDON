@@ -221,5 +221,31 @@ echo "\n12. Logging\n";
 $log = file_get_contents("$work/whmcs-log.jsonl");
 check(strpos($log, 'test-key-secret') === false && strpos($log, 'mock-jwt-token') === false, 'key secret and access token are masked in module logs');
 
+echo "\n13. Subscription plans (registry)\n";
+require_once "$work/whmcs/modules/gateways/pokpay/lib/Subscriptions.php";
+use PokPayWhmcs\Subscriptions;
+check(Subscriptions::frequencyFor('Monthly') === 'monthly' && Subscriptions::frequencyFor('Annually') === 'annually', 'Monthly/Annually map to POK frequencies');
+check(Subscriptions::frequencyFor('Biennially') === null && Subscriptions::frequencyFor('Semi-Annually') === null, 'unsupported cycles are rejected');
+check(!Subscriptions::isEligible(99, 'ALL', 'Monthly')[0] && Subscriptions::isEligible(100, 'ALL', 'Monthly')[0], 'ALL minimum of 100 enforced');
+check(!Subscriptions::isEligible(0.5, 'EUR', 'Annually')[0] && !Subscriptions::isEligible(10, 'USD', 'Monthly')[0], 'EUR minimum of 1 and ALL/EUR-only enforced');
+$threw = false;
+try { Subscriptions::getOrCreatePlan($gatewaySettings, 'Shared Hosting Pro', 1500, 'ALL', 'Monthly'); } catch (\PokPayWhmcs\PokPayException $e) { $threw = true; }
+check($threw && empty(state()['plans']), 'refuses to create a plan without an absolute System URL');
+$gatewaySettings['systemurl'] = $whmcsUrl;
+$p1 = Subscriptions::getOrCreatePlan($gatewaySettings, 'Shared Hosting Pro', 1500, 'ALL', 'Monthly');
+$p2 = Subscriptions::getOrCreatePlan($gatewaySettings, 'Shared Hosting Pro', 1500.00, 'all', 'Monthly');
+$p3 = Subscriptions::getOrCreatePlan($gatewaySettings, 'Shared Hosting Pro', 15000, 'ALL', 'Annually');
+$st = state();
+check($p1['plan_id'] === $p2['plan_id'] && $p1['plan_id'] !== $p3['plan_id'] && count($st['plans']) === 2, 'one POK plan per price/cycle, reused afterwards');
+$created = $st['plans'][$p1['plan_id']];
+check($created['frequency'] === 'monthly' && $created['amount'] == 1500 && $created['currencyCode'] === 'ALL', 'plan created with amount, currency and frequency');
+check($created['webhookUrl'] === $whmcsUrl . 'modules/gateways/callback/pokpay_subscription.php' && strpos($created['redirectUrl'], '?') === false, 'plan URLs are fixed paths without query strings');
+check(strpos($p1['webhook_secret'], $created['webhookSecret']) === false && Subscriptions::planSecret($p1['plan_id']) === $created['webhookSecret'], 'webhook secret stored encrypted and decrypts correctly');
+check(strpos(file_get_contents("$work/whmcs-log.jsonl"), $created['webhookSecret']) === false, 'webhook secret never written to logs');
+$sub = \PokPayWhmcs\Gateway::client($gatewaySettings)->createSubscription($p1['plan_id'], 'client-1', 60);
+check(strpos($sub['subscription']['_self']['confirmUrl'], '/subscriptions/' . $sub['subscription']['id']) !== false && $sub['subscription']['status'] === 'pending', 'subscription created as pending with a checkout URL');
+Subscriptions::storeSubscription($sub['subscription'], $p1['plan_id'], 1, 42);
+check(Subscriptions::findSubscription($sub['subscription']['id'])['service_id'] == 42, 'subscription linked to the WHMCS service');
+
 echo "\n$passes passed, $failures failed\n";
 exit($failures ? 1 : 0);

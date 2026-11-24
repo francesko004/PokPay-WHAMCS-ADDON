@@ -115,6 +115,40 @@ if ($method === 'POST' && preg_match('#^/merchants/([^/]+)/sdk-orders/([^/]+)/re
     respond(200, ['statusCode' => 200, 'data' => ['sdkOrder' => $state['orders'][$m[2]]]]);
 }
 
+if ($method === 'POST' && preg_match('#^/merchants/([^/]+)/subscription-plans$#', $path, $m)) {
+    requireAuth();
+    foreach (['name', 'amount', 'currencyCode', 'frequency'] as $k) {
+        if (!isset($body[$k])) {
+            respond(400, ['statusCode' => 400, 'message' => "\"$k\" is required"]);
+        }
+    }
+    $id = 'plan_' . bin2hex(random_bytes(6));
+    $plan = array_merge($body, ['id' => $id, 'merchantId' => $m[1], 'isActive' => true, 'webhookSecret' => bin2hex(random_bytes(32))]);
+    $state['plans'][$id] = $plan;
+    respond(200, ['statusCode' => 200, 'serverStatusCode' => 200, 'data' => ['subscriptionPlan' => $plan]]);
+}
+
+if ($method === 'POST' && preg_match('#^/merchants/([^/]+)/subscriptions$#', $path, $m)) {
+    requireAuth();
+    if (empty($body['planId']) || !isset($state['plans'][$body['planId']])) {
+        respond(400, ['statusCode' => 400, 'message' => 'Invalid plan']);
+    }
+    $unknown = array_diff(array_keys($body), ['planId', 'externalCustomerId', 'expiresAfterMinutes']);
+    if ($unknown) {
+        respond(400, ['statusCode' => 400, 'message' => 'Unknown fields: ' . implode(',', $unknown)]);
+    }
+    $plan = $state['plans'][$body['planId']];
+    $id = 'sub_' . bin2hex(random_bytes(6));
+    $sub = [
+        'id' => $id, 'merchantId' => $m[1], 'planId' => $plan['id'], 'planName' => $plan['name'],
+        'amount' => $plan['amount'], 'currencyCode' => $plan['currencyCode'], 'status' => 'pending',
+        'customer' => ['email' => null, 'externalCustomerId' => $body['externalCustomerId'] ?? null],
+        '_self' => ['confirmUrl' => 'http://' . $_SERVER['HTTP_HOST'] . '/subscriptions/' . $id, 'confirmDeeplink' => ''],
+    ];
+    $state['subscriptions'][$id] = $sub;
+    respond(200, ['statusCode' => 200, 'data' => ['subscription' => $sub, 'plan' => ['id' => $plan['id'], 'name' => $plan['name']]]]);
+}
+
 // ---- test controls ----
 if ($method === 'POST' && preg_match('#^/__test/complete/([^/]+)$#', $path, $m)) {
     $state['orders'][$m[1]]['isCompleted'] = true;

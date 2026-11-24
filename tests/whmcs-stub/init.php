@@ -104,3 +104,13 @@ function convertCurrency($amount, $from, $to)
     $toRate = (float) Manager::table('tblcurrencies')->where('id', $to)->value('rate');
     return round($amount / $fromRate * $toRate, 2);
 }
+
+function encrypt($value)
+{
+    return 'enc:' . base64_encode(strrev((string) $value));
+}
+
+function decrypt($value)
+{
+    return strpos((string) $value, 'enc:') === 0 ? strrev(base64_decode(substr($value, 4))) : '';
+}
