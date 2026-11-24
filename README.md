@@ -26,8 +26,9 @@ applied automatically.
 
 ## Requirements
 
-- WHMCS 8.x (7.10+ should work)
-- PHP 7.4 – 8.3 with `curl` and `json`
+- WHMCS 9.x (including 9.11) or 8.x
+- PHP 7.4 – 8.3 with `curl` and `json` (tested on PHP 8.3 with strict error reporting, against
+  Laravel database components v10 and v11)
 - A POK Business merchant account with e-payments enabled (Merchant ID + API key)
 - Your WHMCS site reachable over public HTTPS, so PokPay can deliver webhooks
 
@@ -43,8 +44,9 @@ applied automatically.
 
    Or build the zip with `./build.sh` (see *Packaging*) and extract it into the WHMCS root.
 
-2. In WHMCS go to **System Settings → Payment Gateways → All Payment Gateways** and click
-   **POK (PokPay) - Card Payments**.
+2. In the WHMCS admin area open **Payment Gateways** (Configuration → System Settings →
+   Payment Gateways, or type "Payment Gateways" in the admin search). Under all gateways
+   click **POK (PokPay) - Card Payments** to activate it.
 
 3. Fill in the settings:
 

@@ -24,7 +24,7 @@ exec('cp -R ' . escapeshellarg("$root/modules") . ' ' . escapeshellarg("$work/wh
 $env = [
     'POKPAY_TEST_DB' => "$work/whmcs.sqlite",
     'POKPAY_TEST_SYSTEMURL' => $whmcsUrl,
-    'POKPAY_TEST_VENDOR' => __DIR__ . '/vendor',
+    'POKPAY_TEST_VENDOR' => getenv('POKPAY_TEST_VENDOR') ?: __DIR__ . '/vendor',
     'MOCK_STATE' => "$work/mock-state.json",
 ];
 foreach ($env as $k => $v) {
@@ -108,7 +108,7 @@ function check($cond, $label) {
 }
 function state() { global $apiUrl; return json_decode(http('GET', "$apiUrl/__test/state")['body'], true); }
 function token($invoiceId) { global $gatewaySettings; return \PokPayWhmcs\Gateway::invoiceToken($gatewaySettings, $invoiceId); }
-function pay($invoiceId) { global $whmcsUrl; return http('POST', $whmcsUrl . 'modules/gateways/pokpay/pay.php', ['invoiceid' => $invoiceId, 'token' => token($invoiceId)]); }
+function pay($invoiceId) { global $whmcsUrl; return http('GET', $whmcsUrl . 'modules/gateways/pokpay/pay.php?' . http_build_query(['invoiceid' => $invoiceId, 'token' => token($invoiceId)])); }
 function cb($invoiceId, $action, $body = null) { global $whmcsUrl; return http($body === null ? 'GET' : 'POST', $whmcsUrl . "modules/gateways/callback/pokpay.php?invoiceid=$invoiceId&action=$action", $body, true); }
 function orderIdFrom($location) { return basename(parse_url($location, PHP_URL_PATH)); }
 function invStatus($id) { return DB::table('tblinvoices')->where('id', $id)->value('status'); }
@@ -119,7 +119,7 @@ require_once "$work/whmcs/modules/gateways/pokpay.php";
 // ---------------------------------------------------------------- tests
 echo "\n1. Payment button\n";
 $html = pokpay_link(array_merge($gatewaySettings, ['invoiceid' => 1, 'currency' => 'ALL', 'systemurl' => $whmcsUrl]));
-check(strpos($html, 'modules/gateways/pokpay/pay.php') !== false && strpos($html, token(1)) !== false, 'renders form posting to pay.php with signed token');
+check(strpos($html, 'method="get"') !== false && strpos($html, 'modules/gateways/pokpay/pay.php') !== false && strpos($html, token(1)) !== false, 'renders GET form to pay.php with signed token');
 $html = pokpay_link(array_merge($gatewaySettings, ['invoiceid' => 4, 'currency' => 'USD', 'systemurl' => $whmcsUrl]));
 check(strpos($html, 'ALL or EUR') !== false, 'warns when invoice currency is not ALL/EUR');
 
@@ -139,6 +139,8 @@ check(strpos($create['body']['webhookUrl'], 'callback/pokpay.php?invoiceid=1&act
 check($create['body']['description'] === 'Test Hosting shpk - Invoice #INV-1', 'description uses placeholders');
 $r2 = pay(1);
 check($r2['location'] === $r['location'] && count(state()['orders']) === 1, 'reuses pending checkout instead of creating a duplicate');
+$r3 = http('POST', $whmcsUrl . 'modules/gateways/pokpay/pay.php', ['invoiceid' => 1, 'token' => token(1)]);
+check($r3['location'] === $r['location'], 'POST requests still accepted');
 
 echo "\n3. Return before payment completes\n";
 $r = cb(1, 'return');

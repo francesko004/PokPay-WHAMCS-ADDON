@@ -8,6 +8,15 @@
 
 define('WHMCS', true);
 
+// Fail loudly on any notice/warning/deprecation raised by the module (PHP 8.2+ strictness).
+error_reporting(E_ALL);
+set_error_handler(function ($severity, $message, $file, $line) {
+    if (strpos($file, '/modules/') === false) {
+        return false; // only police the gateway's own code
+    }
+    throw new \ErrorException($message, 0, $severity, $file, $line);
+});
+
 require_once getenv('POKPAY_TEST_VENDOR') . '/autoload.php';
 
 use Illuminate\Database\Capsule\Manager;

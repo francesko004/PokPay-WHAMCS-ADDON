@@ -115,7 +115,7 @@ function pokpay_link($params)
     $action = Gateway::systemUrl($params) . 'modules/gateways/pokpay/pay.php';
     $label = !empty($params['buttonText']) ? $params['buttonText'] : (isset($params['langpaynow']) ? $params['langpaynow'] : 'Pay Now');
 
-    $html = '<form method="post" action="' . htmlspecialchars($action) . '">';
+    $html = '<form method="get" action="' . htmlspecialchars($action) . '">';
     $html .= '<input type="hidden" name="invoiceid" value="' . $invoiceId . '">';
     $html .= '<input type="hidden" name="token" value="' . htmlspecialchars(Gateway::invoiceToken($params, $invoiceId)) . '">';
     $html .= '<button type="submit" class="btn btn-success">' . htmlspecialchars($label) . '</button>';
