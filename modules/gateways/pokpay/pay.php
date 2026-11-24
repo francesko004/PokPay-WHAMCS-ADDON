@@ -13,6 +13,30 @@ use PokPayWhmcs\Gateway;
 use PokPayWhmcs\PokPayClient;
 use WHMCS\Database\Capsule;
 
+/**
+ * Append the customer's details so POK's payment page is prefilled.
+ */
+function pokpay_prefill_url($url, $client)
+{
+    if (!$client) {
+        return $url;
+    }
+    $fields = [
+        'firstName' => isset($client->firstname) ? $client->firstname : '',
+        'lastName' => isset($client->lastname) ? $client->lastname : '',
+        'email' => isset($client->email) ? $client->email : '',
+        'phone' => isset($client->phonenumber) ? preg_replace('/[^0-9+]/', '', (string) $client->phonenumber) : '',
+        'country' => isset($client->country) ? strtoupper((string) $client->country) : '',
+    ];
+    $fields = array_filter($fields, function ($v) {
+        return trim((string) $v) !== '';
+    });
+    if (!$fields) {
+        return $url;
+    }
+    return $url . (strpos($url, '?') === false ? '?' : '&') . http_build_query($fields, '', '&', PHP_QUERY_RFC3986);
+}
+
 function pokpay_fail_page($message, $invoiceId = 0, $systemUrl = '')
 {
     http_response_code(400);
@@ -81,7 +105,7 @@ if (!in_array($chargeCurrency, Gateway::SUPPORTED_CURRENCIES, true)) {
 // Send the client back to a still-valid checkout instead of creating duplicates.
 $existing = Gateway::reusableOrder($invoiceId, $chargeAmount, $chargeCurrency);
 if ($existing) {
-    header('Location: ' . $existing['confirm_url']);
+    header('Location: ' . pokpay_prefill_url($existing['confirm_url'], $client));
     exit;
 }
 
@@ -132,5 +156,5 @@ try {
     pokpay_fail_page('We could not connect to POK right now. Please try again in a few minutes.', $invoiceId, $systemUrl);
 }
 
-header('Location: ' . $confirmUrl);
+header('Location: ' . pokpay_prefill_url($confirmUrl, $client));
 exit;

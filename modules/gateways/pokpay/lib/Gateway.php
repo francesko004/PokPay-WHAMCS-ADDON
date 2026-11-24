@@ -11,7 +11,7 @@ use WHMCS\Database\Capsule;
 require_once __DIR__ . '/PokPayClient.php';
 
 if (!defined('POKPAY_WHMCS_VERSION')) {
-    define('POKPAY_WHMCS_VERSION', '1.0.1');
+    define('POKPAY_WHMCS_VERSION', '1.0.2');
 }
 
 class Gateway

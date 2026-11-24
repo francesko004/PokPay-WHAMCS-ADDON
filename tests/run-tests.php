@@ -38,7 +38,7 @@ use Illuminate\Database\Capsule\Manager as DB;
 $schema = DB::schema();
 $schema->create('tblpaymentgateways', function ($t) { $t->increments('id'); $t->string('gateway'); $t->string('setting'); $t->text('value'); });
 $schema->create('tblcurrencies', function ($t) { $t->increments('id'); $t->string('code'); $t->decimal('rate', 10, 5); $t->integer('default')->default(0); });
-$schema->create('tblclients', function ($t) { $t->increments('id'); $t->integer('currency'); });
+$schema->create('tblclients', function ($t) { $t->increments('id'); $t->integer('currency'); $t->string('firstname')->default(''); $t->string('lastname')->default(''); $t->string('email')->default(''); $t->string('phonenumber')->default(''); $t->string('country')->default(''); });
 $schema->create('tblinvoices', function ($t) { $t->increments('id'); $t->integer('userid'); $t->string('invoicenum')->default(''); $t->decimal('total', 10, 2); $t->string('status'); });
 $schema->create('tblaccounts', function ($t) { $t->increments('id'); $t->integer('invoiceid'); $t->string('transid'); $t->decimal('amountin', 10, 2); $t->decimal('amountout', 10, 2)->default(0); $t->decimal('fees', 10, 2)->default(0); $t->string('gateway'); });
 
@@ -56,7 +56,8 @@ DB::table('tblcurrencies')->insert([
     ['id' => 2, 'code' => 'EUR', 'rate' => 0.01, 'default' => 0],
     ['id' => 3, 'code' => 'USD', 'rate' => 0.011, 'default' => 0],
 ]);
-DB::table('tblclients')->insert([['id' => 1, 'currency' => 1], ['id' => 2, 'currency' => 3], ['id' => 3, 'currency' => 2]]);
+DB::table('tblclients')->insert(['id' => 1, 'currency' => 1, 'firstname' => 'Arta', 'lastname' => 'Hoxha', 'email' => 'arta@example.al', 'phonenumber' => '+355.69 123 4567', 'country' => 'al']);
+DB::table('tblclients')->insert([['id' => 2, 'currency' => 3], ['id' => 3, 'currency' => 2]]);
 $inv = function ($id, $user, $total) { DB::table('tblinvoices')->insert(['id' => $id, 'userid' => $user, 'invoicenum' => "INV-$id", 'total' => $total, 'status' => 'Unpaid']); };
 $inv(1, 1, 2500.00);  // ALL
 $inv(2, 1, 1200.00);  // ALL, tampered amount
@@ -128,6 +129,7 @@ $r = http('POST', $whmcsUrl . 'modules/gateways/pokpay/pay.php', ['invoiceid' =>
 check($r['status'] === 400, 'rejects a forged token');
 $r = pay(1);
 check($r['status'] === 302 && strpos($r['location'], "$apiUrl/pay/") === 0, 'redirects to POK hosted payment page');
+check(strpos($r['location'], '?firstName=Arta&lastName=Hoxha&email=arta%40example.al&phone=%2B355691234567&country=AL') !== false, 'payment page prefilled with customer details');
 $order1 = orderIdFrom($r['location']);
 $s = state();
 $create = null;
